@@ -14,7 +14,9 @@ components:
       - deny
       x-seal-verbs:
       - inspect
-      - read
       - use
       - manage
       x-seal-default-action: deny
+      properties:
+        id:
+          type: string

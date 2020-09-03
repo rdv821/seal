@@ -18,9 +18,9 @@ func TestNewTypeFromOpenAPIv3(t *testing.T) {
 		for _, ac := range st.GetActions() {
 			t.Logf("got action: %#v", ac)
 			if attrs, exists := ac.GetProperty(ac.GetName()); attrs != nil && exists {
-			    t.Logf("  got type schema for action: %#v", attrs)
+				t.Logf("  got type schema for action: %#v", attrs)
 			} else {
-			    t.Logf("    TODO: get type schema for action")
+				t.Logf("    TODO: get type schema for action")
 			}
 		}
 
@@ -47,4 +47,7 @@ components:
       - use
       - manage
       x-seal-default-action: deny
+      properties:
+        id:
+          type: string
 `)

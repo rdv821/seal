@@ -26,6 +26,9 @@ import (
 	"github.com/infobloxopen/seal/pkg/compiler"
 	// register the rego backend compiler
 	_ "github.com/infobloxopen/seal/pkg/compiler/rego"
+	"github.com/infobloxopen/seal/pkg/lexer"
+	"github.com/infobloxopen/seal/pkg/parser"
+	"github.com/infobloxopen/seal/pkg/types"
 	"github.com/spf13/cobra"
 )
 
@@ -49,6 +52,13 @@ a custom backend to target your own runtime.`,
 
 func compileFunc(cmd *cobra.Command, args []string) {
 
+	// instantiate backend compiler
+	cplr, err := compiler.New(compileSettings.backend)
+	if err != nil {
+		log.Printf("could not instantiate backend %v: %s\n", compileSettings.backend, err)
+		os.Exit(1)
+	}
+
 	if compileSettings.swaggerFile == "" {
 		log.Println("swagger file is required for inferring types")
 		os.Exit(1)
@@ -59,11 +69,9 @@ func compileFunc(cmd *cobra.Command, args []string) {
 		log.Printf("could not read swagger file %v: %s", compileSettings.swaggerFile, err)
 		os.Exit(1)
 	}
-
-	cplr, err := compiler.NewPolicyCompiler(compileSettings.backend, string(swaggerSpec))
+	readTypes, err := types.NewTypeFromOpenAPIv3(swaggerSpec)
 	if err != nil {
-		log.Printf("could not create policy compiler: %s", err)
-		os.Exit(1)
+		log.Printf("error parsting swagger file: %s", err)
 	}
 
 	var output []string
@@ -76,9 +84,26 @@ func compileFunc(cmd *cobra.Command, args []string) {
 			os.Exit(1)
 		}
 
-		// compile policies from policy rules
+		// parse input
+		// TODO: replace example static type with imported dynamic types
+		l := lexer.New(string(input))
+		p := parser.New(l, readTypes)
+		pols := p.ParsePolicies()
+		errors := p.Errors()
+		if n := len(errors); n > 0 {
+			log.Printf("parser has %d errors:\n", n)
+			for _, msg := range errors {
+				log.Printf("  error: %q\n", msg)
+			}
+		}
+		if pols == nil {
+			log.Printf("unable to find any policies in file %v\n", fil)
+			os.Exit(1)
+		}
+
+		// compile policies from AST
 		pkgname := path.Base(fil)
-		out, err := cplr.Compile(pkgname, string(input))
+		out, err := cplr.Compile(pkgname, pols)
 		if err != nil {
 			log.Printf("could not compile file %v: %s\n", fil, err)
 			os.Exit(1)

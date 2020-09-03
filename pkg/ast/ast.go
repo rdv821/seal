@@ -28,6 +28,18 @@ type Policy interface {
 	policyNode()
 }
 
+type Selector interface {
+	Node
+	selectorNode()
+	GetLiterals() []*Identifier
+}
+
+type Condition interface {
+	Node
+	operationNode()
+	getLiterals() []*Identifier
+}
+
 type Policies struct {
 	Statements []Statement
 }
@@ -53,6 +65,7 @@ type ActionStatement struct {
 	Subject     Subject
 	Verb        *Identifier
 	TypePattern *Identifier
+	Selector    Selector
 }
 
 func (a *ActionStatement) TokenLiteral() string {
@@ -90,3 +103,49 @@ func (t *TypePattern) TokenLiteral() string {
 	return t.TokenLiteral()
 }
 func (t *TypePattern) typePatternNode() {}
+
+// TODO: to collapse UnaryCondition and BinaryCondition into just Condition
+type UnaryCondition struct {
+	Token    token.Token
+	LHS      *Identifier
+	Operator *Identifier
+	RHS      *Identifier
+}
+
+func (s *UnaryCondition) TokenLiteral() string {
+	return s.TokenLiteral()
+}
+func (s *UnaryCondition) operationNode() {}
+func (s *UnaryCondition) getLiterals() []*Identifier {
+	return []*Identifier{s.LHS}
+}
+
+type BinaryCondition struct {
+	Token token.Token
+	LHS   Condition
+	RHS   Condition
+}
+
+func (s *BinaryCondition) TokenLiteral() string {
+	return s.TokenLiteral()
+}
+func (s *BinaryCondition) operationNode() {}
+func (s *BinaryCondition) getLiterals() []*Identifier {
+	out := []*Identifier{}
+	out = append(out, s.LHS.getLiterals()...)
+	out = append(out, s.RHS.getLiterals()...)
+	return out
+}
+
+type WhereClause struct {
+	Token       token.Token
+	Conditional Condition
+}
+
+func (s *WhereClause) TokenLiteral() string {
+	return s.TokenLiteral()
+}
+func (s *WhereClause) selectorNode() {}
+func (s *WhereClause) GetLiterals() []*Identifier {
+	return s.Conditional.getLiterals()
+}
